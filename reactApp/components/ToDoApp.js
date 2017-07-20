@@ -1,8 +1,9 @@
 import React from 'react';
 import ToDoList from './ToDoList';
 import InputLine from './InputLine';
+import axios from 'axios';
 
-const dummyData = [{ taskText: "Catch 'em all", completed: false }, { taskText: "Do laundry", completed: true }, { taskText: "Cook dinner", completed: false }, { taskText: "Mail letters", completed: false }];
+const dbUrl = "http://localhost:3000/db";
 
 class ToDoApp extends React.Component {
   constructor(props){
@@ -13,37 +14,56 @@ class ToDoApp extends React.Component {
   }
 
   componentDidMount() {
-    this.setState({
-      todos: dummyData
-    })
+    axios.get(dbUrl + '/all')
+      .then(function(resp) {
+        this.setState({
+          todos: resp.data
+        })
+      }.bind(this));
   }
 
   addToDo(task) {
-    dummyData.push({taskText: task, completed: false});
-    this.setState({
-      todos: dummyData
-    });
+    let self = this;
+    axios.post(dbUrl + '/add', {taskText: task})
+      .then(function(response) {
+        self.setState({ todos: self.state.todos.concat(response.data)});
+      })
+      .catch(function (error) {
+        console.log("Error", error);
+      });
   }
 
-  removeToDo(index) {
-    dummyData.splice(index, 1);
-    this.setState({
-      todos: dummyData
-    });
+  removeToDo(id) {
+    let self = this;
+    axios.post(dbUrl + '/remove', { id: id } )
+      .then(function(resp) {
+        let newArr = self.state.todos.slice();
+        let i = newArr.findIndex((a) => (a.taskText === resp.data.taskText));
+        newArr.splice(i, 1);
+        self.setState({
+          todos: newArr
+        })
+      })
   }
 
-  toggleStatus(index) {
-    dummyData[index].completed = !dummyData[index].completed;
-    this.setState({
-      todos: dummyData
-    });
+  toggleStatus(id) {
+    let self = this;
+    axios.post(dbUrl + '/toggle', { id: id } )
+      .then(function(resp) {
+        let newArr = self.state.todos.slice();
+        let i = newArr.find((a) => (a.taskText === resp.data.taskText));
+        if (i) i.completed = !i.completed;
+        self.setState({
+          todos: newArr
+        })
+      });
   }
 
   render() {
     return (
       <div>
         <InputLine submit={(task) => this.addToDo(task)} />
-        <ToDoList todos={this.state.todos} todoXClick={(index) => this.removeToDo(index)} todoToggle={(index) => this.toggleStatus(index)}/>
+        <ToDoList todos={this.state.todos} todoXClick={(id) => this.removeToDo(id)} todoToggle={(id) => this.toggleStatus(id)}/>
       </div>
     )
   }
